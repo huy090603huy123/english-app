@@ -1,34 +1,107 @@
-# 💫Flutter Ứng dụng học tiếng anh :
-📘 English Learning App (Flutter + Riverpod + SQLite)
-🌟 Giới thiệu
-Ứng dụng English Learning App được phát triển bằng Flutter, sử dụng Riverpod để quản lý trạng thái và SQLite để lưu trữ dữ liệu cục bộ. Ứng dụng giúp người dùng nâng cao kỹ năng tiếng Anh thông qua các bài học, từ vựng, bài kiểm tra và nhiều tính năng hữu ích khác.
+# Speak Up - English Learning App - Flutter
 
-🚀 Công nghệ sử dụng
-Flutter: Framework phát triển ứng dụng đa nền tảng (Android/iOS).
+Speak Up is an English learning app developed to help users improve their English language skills through various interactive features and resources. This repository contains the source code for the app.
 
-Riverpod: Quản lý trạng thái hiện đại, giúp code rõ ràng và dễ bảo trì.
+## Table of Contents
 
-SQLite: Cơ sở dữ liệu nhẹ, dùng để lưu trữ từ vựng, lịch sử học tập, điểm số.
+- [Development Stack](#development-stack)
+- [Getting Started](#getting-started)
+- [Features](#features)
+- [Screenshots](#screenshots)
+- [Author](#author)
 
-🎯 Tính năng chính
-✅ Học từ vựng: Hiển thị danh sách từ vựng, nghĩa và phát âm.
-✅ Bài kiểm tra: Quiz giúp người dùng kiểm tra kiến thức.
-✅ Luyện phát âm: Hướng dẫn cách phát âm đúng.
-✅ Lưu trữ dữ liệu offline: Dữ liệu được lưu bằng SQLite, có thể sử dụng không cần mạng.
-✅ Chế độ tối (Dark Mode): Giao diện tối giúp bảo vệ mắt.
-✅ Cá nhân hóa: Ghi nhớ lịch sử học tập và đề xuất bài học phù hợp.
+## Development Stack
+- **Architecture**: Layered Architecture:
+```mermaid
+graph TD;
+    domain-->data;
+    presentation-->domain;
+    presentation-->data;
+```
+    
 
-📌 Công nghệ mở rộng (Future Plans)
-🔹 Thêm API RESTful để đồng bộ dữ liệu lên server.
+- **Dependency Injection**: GetIt.
 
-🔹 Tích hợp Firebase để lưu trữ đám mây.
+- **State Management**: Riverpod + MVVM (Model - View - ViewModel).
 
-🔹 Học qua video, chatbot AI luyện nói.
+- **Network Integration**: Dio + Retrofit, Json Serialization.
 
-📌 Mọi đóng góp, góp ý hoặc lỗi vui lòng tạo issue hoặc pull request! 🚀
+- **Cloud Services**:
+  + Firebase: Authentication, Firestore Database, ...
+  + Google Cloud: Speech To Text, Text To Speech,...
 
-# 💻Tech Stack
-![Java](https://img.shields.io/badge/java-%23ED8B00.svg?style=for-the-badge&logo=java&logoColor=white) ![Firebase](https://img.shields.io/badge/firebase-%23039BE5.svg?style=for-the-badge&logo=firebase) ![Flutter](https://img.shields.io/badge/Flutter-%2302569B.svg?style=for-the-badge&logo=Flutter&logoColor=white) ![SQLite](https://img.shields.io/badge/sqlite-%2307405e.svg?style=for-the-badge&logo=sqlite&logoColor=white)
+- **API Integration**: Youtube API, Words API.
 
-### 😂Random Dev Meme
-<img src="https://random-memer.herokuapp.com/" width="512px"/>
+- **Local Data Storage**: Shared Preferences, SQLite.
+
+## Getting Started
+
+To run this app locally, follow these steps:
+
+1. Clone this repository to your local machine using
+   ```
+   git clone https://github.com/letanssang/speak_up_flutter.git
+   ```
+
+2. Open the project in Android Studio or your preferred IDE.
+
+3. Ensure you have the necessary Flutter environment set up.
+4. Feel free to reach out to me to obtain the `keys.env` file  and paste it into `assets/keys/` directory
+or create new one with this format:
+```
+WORDS_API_KEY=....
+OPEN_AI_KEY=...
+```
+
+  
+6. Run
+   ```
+   flutter pub get
+   dart run build_runner build
+   ```
+
+7. Run the app on an emulator or physical device.
+## Features
+- **Authentication**: Sign up and log in using Google, email. Edit user profiles and personalize your learning journey.
+
+- **Multilingual**: Choose between English and Vietnamese as your interface language.
+  
+ - **UI Modes**: Customize your app experience with both Dark Mode and Light Mode..
+
+- **Conversation Practice**: Listen to and repeat 75 English dialogues across various topics to enhance your speaking skills.
+
+- **English Lessons**: Explore a variety of English lessons, including common phrases, sentence patterns, idioms, and more.
+  
+- **Learning Mode**: Engage in various learning modes, including quizzes, flashcards, and more..
+
+- **Pronunciation Evaluation**: Get feedback on your pronunciation and practice all 44 IPA (International Phonetic Alphabet) sounds.
+
+- **Reels and Learning**: Enjoy learning English while watching entertaining reels and videos.
+
+- **Word Definitions**: Easily look up the meanings of words and expand your vocabulary.
+
+- **Bookmark and Review**: Save noteworthy lessons for later review, ensuring you never miss important content.
+
+## Screenshots
+<img src="https://github.com/letanssang/speak_up_flutter/assets/67082439/caf3d3a9-2d8d-416e-b5b3-174313b457b3" width=375/>
+<img src="https://github.com/letanssang/speak_up_flutter/assets/67082439/3f9d74ed-a9bb-46d7-b1d6-d57084ea642d" width=375/>
+<img src="https://github.com/letanssang/speak_up_flutter/assets/67082439/1bf656ac-ae3d-4578-a9f2-e7a8cf9ad467" width=375/>
+<img src="https://github.com/letanssang/speak_up_flutter/assets/67082439/eb4c455a-330b-42a6-bd77-de48a39b7e05" width=375/>
+<img src="https://github.com/letanssang/speak_up_flutter/assets/67082439/02ac12c7-0949-45a8-85c7-c36c19ce5010" width=375/>
+<img src="https://github.com/letanssang/speak_up_flutter/assets/67082439/233685eb-4e52-4d47-88fa-e51355994228" width=375/>
+
+
+## Author
+
+**Tan Sang Le**
+
+- LinkedIn: [Tấn Sang Lê](https://www.linkedin.com/in/letansang/)
+- GitHub: [letanssang](https://github.com/letanssang)
+- Email: letan.ssang@gmail.com
+  
+
+
+
+
+
+
