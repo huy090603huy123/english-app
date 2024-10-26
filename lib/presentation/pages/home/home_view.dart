@@ -7,15 +7,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speak_up/data/providers/app_language_provider.dart';
 import 'package:speak_up/data/providers/app_navigator_provider.dart';
 import 'package:speak_up/data/providers/app_theme_provider.dart';
 import 'package:speak_up/domain/entities/category/category.dart';
 import 'package:speak_up/domain/entities/lesson/lesson.dart';
 import 'package:speak_up/domain/entities/youtube_video/youtube_video.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-
 import 'package:speak_up/domain/use_cases/firestore/get_flash_card_list_use_case.dart';
 import 'package:speak_up/domain/use_cases/firestore/get_youtube_playlist_id_list_use_case.dart';
 import 'package:speak_up/domain/use_cases/local_database/get_category_list_use_case.dart';
@@ -25,6 +22,7 @@ import 'package:speak_up/injection/injector.dart';
 import 'package:speak_up/presentation/navigation/app_routes.dart';
 import 'package:speak_up/presentation/pages/home/home_state.dart';
 import 'package:speak_up/presentation/pages/home/home_view_model.dart';
+import 'package:speak_up/presentation/pages/lesson/lesson_view.dart';
 import 'package:speak_up/presentation/pages/reels/reels_state.dart';
 import 'package:speak_up/presentation/pages/reels/reels_view_model.dart';
 import 'package:speak_up/presentation/pages/search/search_view.dart';
@@ -33,8 +31,6 @@ import 'package:speak_up/presentation/utilities/constant/category_icon_list.dart
 import 'package:speak_up/presentation/utilities/enums/language.dart';
 import 'package:speak_up/presentation/utilities/enums/loading_status.dart';
 import 'package:path/path.dart' as path;
-
-import '../../../data/models/test.dart';
 
 final homeViewModelProvider =
     StateNotifierProvider.autoDispose<HomeViewModel, HomeState>(
@@ -55,12 +51,11 @@ class HomeView extends ConsumerStatefulWidget {
 
 class _HomeViewState extends ConsumerState<HomeView> {
   HomeViewModel get _viewModel => ref.read(homeViewModelProvider.notifier);
-
   Future<void> _init() async {
-    if (!mounted) return;
+    if (!mounted) return; // Kiểm tra widget đã được gắn vào cây hay chưa
 
     await _viewModel.getCategoryList();
-    if (!mounted) return;
+    if (!mounted) return; // Kiểm tra lại sau mỗi hành động không đồng bộ
     await _viewModel.getLessonList();
     if (!mounted) return;
     await _viewModel.getFlashCardList();
@@ -83,24 +78,24 @@ class _HomeViewState extends ConsumerState<HomeView> {
   int _currentBannerPage = 0;
 
   Timer? _bannerTimer;
-  List<String> savedScores = [];
 
   @override
   void initState() {
     super.initState();
-    _loadScore();
-
     Future.delayed(Duration.zero, () async {
       await _init();
+      // Sử dụng addPostFrameCallback để đảm bảo widget đã được xây dựng
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _bannerTimer = Timer.periodic(Duration(seconds: 3), (Timer timer) {
-          if (!mounted) return;
+          if (!mounted) return; // Kiểm tra nếu widget đã bị dispose
+
           if (_currentBannerPage < 2) {
             _currentBannerPage++;
           } else {
             _currentBannerPage = 0;
           }
 
+          // Chỉ thực hiện animate khi widget còn tồn tại
           if (_bannerController.hasClients) {
             _bannerController.animateToPage(
               _currentBannerPage,
@@ -115,59 +110,19 @@ class _HomeViewState extends ConsumerState<HomeView> {
 
   @override
   void dispose() {
-    _bannerTimer?.cancel();
-    _bannerController.dispose();
-
+    _bannerTimer?.cancel(); // Hủy Timer khi widget bị dispose
+    _bannerController.dispose(); // Hủy bỏ controller để tránh lỗi
     super.dispose();
-  }
-
-  Future<void> _loadScore() async {
-    double scoreListening = await getLatestScore("listening");
-    print('Loaded   score: $scoreListening%');
-
-    double scoreReading = await getLatestScore("reading");
-    print('Loaded   score: $scoreReading%');
-
-    double scoreWriting = await getLatestScore("writing");
-    print('Loaded   score: $scoreWriting%');
-
-    double scoreSpeaking = await getLatestScore("speaking");
-    print('Loaded   score: $scoreWriting%');
-
-    setState(() {
-      _listeningScore = scoreListening;
-      _readingScore = scoreReading;
-      _writingScore = scoreWriting;
-      _speakingScore = scoreSpeaking;
-    });
-  }
-
-  double _listeningScore = 0.0;
-
-  double _writingScore = 0.0;
-  double _readingScore = 0.0;
-  double _speakingScore = 0.0;
-
-  Future<double> getLatestScore(String skill) async {
-    final prefs = await SharedPreferences.getInstance();
-    final key = '${skill}_scores'; // Định danh cho mỗi kỹ năng
-    final List<String> savedScores = prefs.getStringList(key) ?? [];
-
-    if (savedScores.isEmpty) {
-      print("No scores found for $skill.");
-      return 0.0;
-    }
-
-    String latestScore = savedScores[0];
-    double percentage = double.tryParse(latestScore.split('%')[0]) ?? 0.0;
-    print("Retrieved score for $skill: $percentage%");
-    return percentage;
   }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(homeViewModelProvider);
-    final reelsState = ref.watch(reelsViewModelProvider);
+    final reelsState =
+        ref.watch(reelsViewModelProvider); // This will get the current state
+
+    print(
+        'Local videos in HomeView: ${state.localVideos}'); // Log danh sách video ở HomeView
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -175,8 +130,11 @@ class _HomeViewState extends ConsumerState<HomeView> {
           children: [
             buildAppBar(),
             buildBanner(),
+            // buildCategories(state),
+            // buildExplore(state),
             buildConversations(state),
-            buildReels(reelsState),
+            // buildFlashCards(state),
+            buildReels(reelsState), // Pass ReelsState to buildReels
             buildSkillsEvaluationTable(),
           ],
         ),
@@ -212,23 +170,23 @@ class _HomeViewState extends ConsumerState<HomeView> {
                   color:
                       Theme.of(context).colorScheme.secondary.withOpacity(0.2),
                 ),
-                children: const [
+                children: [
                   Padding(
-                    padding: EdgeInsets.all(8.0),
+                    padding: const EdgeInsets.all(8.0),
                     child: Text(
                       "Skill",
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
                   Padding(
-                    padding: EdgeInsets.all(8.0),
+                    padding: const EdgeInsets.all(8.0),
                     child: Text(
-                      "Score %",
+                      "Score",
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
                   Padding(
-                    padding: EdgeInsets.all(8.0),
+                    padding: const EdgeInsets.all(8.0),
                     child: Text(
                       "Progress",
                       style: TextStyle(fontWeight: FontWeight.bold),
@@ -236,10 +194,10 @@ class _HomeViewState extends ConsumerState<HomeView> {
                   ),
                 ],
               ),
-              buildSkillTableRow("Listenning ", _listeningScore.toInt()),
-              buildSkillTableRow("Reading", _readingScore.toInt()),
-              buildSkillTableRow("Writing", _writingScore.toInt()),
-              buildSkillTableRow("Speaking", _speakingScore.toInt()),
+              buildSkillTableRow("Listening", 75),
+              buildSkillTableRow("Speaking", 85),
+              buildSkillTableRow("Reading", 65),
+              buildSkillTableRow("Writing", 90),
             ],
           ),
         ],
@@ -248,16 +206,19 @@ class _HomeViewState extends ConsumerState<HomeView> {
   }
 
   Widget buildReels(ReelsState reelsState) {
+    print('Local videos: ${reelsState.localVideos}');
+
     Future<bool> checkAssetExists(String assetPath) async {
       try {
         await rootBundle.load(assetPath);
+        print('Asset exists: $assetPath');
         return true;
       } catch (e) {
+        print('Asset does not exist: $assetPath');
+        print('Error: $e');
         return false;
       }
     }
-
-    final isWeb = kIsWeb;
 
     return Column(
       children: [
@@ -269,7 +230,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
               child: Text(
                 'Reels',
                 style: TextStyle(
-                  fontSize: ScreenUtil().setSp(isWeb ? 20 : 18),
+                  fontSize: ScreenUtil().setSp(18),
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -279,12 +240,12 @@ class _HomeViewState extends ConsumerState<HomeView> {
         SizedBox(height: ScreenUtil().setHeight(4)),
         if (reelsState.localVideos == LoadingStatus.loading)
           SizedBox(
-            height: ScreenUtil().screenHeight * (isWeb ? 0.4 : 0.3),
+            height: ScreenUtil().screenHeight * 0.3,
             child: const Center(child: CircularProgressIndicator()),
           )
         else if (reelsState.localVideos.isNotEmpty)
           SizedBox(
-            height: ScreenUtil().screenHeight * (isWeb ? 0.4 : 0.3),
+            height: ScreenUtil().screenHeight * 0.3,
             child: ListView.builder(
               itemCount: reelsState.localVideos.length,
               scrollDirection: Axis.horizontal,
@@ -292,15 +253,14 @@ class _HomeViewState extends ConsumerState<HomeView> {
               itemBuilder: (context, index) {
                 final videoPath = reelsState.localVideos[index];
                 final videoName = path.basename(videoPath).split('.').first;
-                final thumbnailPath = reelsState.videoThumbnails.isNotEmpty &&
-                        index < reelsState.videoThumbnails.length
-                    ? reelsState.videoThumbnails[index]
-                    : 'assets/images/video_placeholder.png';
+
                 return Padding(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                   child: GestureDetector(
                     onTap: () async {
+                      print('Checking video path: $videoPath');
+
                       if (videoPath.startsWith('assets/')) {
                         final exists = await checkAssetExists(videoPath);
                         if (!exists) {
@@ -328,17 +288,18 @@ class _HomeViewState extends ConsumerState<HomeView> {
                         }
                       }
 
+                      print('Video exists, navigating to player');
                       Navigator.pushNamed(
                         context,
                         AppRoutes.reels,
                         arguments: {
                           'videos': reelsState.localVideos,
-                          'initialIndex': index,
+                          'initialIndex': index
                         },
                       );
                     },
                     child: AspectRatio(
-                      aspectRatio: isWeb ? 0.75 : 0.65,
+                      aspectRatio: 0.65,
                       child: Stack(
                         children: [
                           Container(
@@ -347,7 +308,9 @@ class _HomeViewState extends ConsumerState<HomeView> {
                               border: Border.all(color: Colors.black54),
                               color: Colors.grey[300],
                               image: DecorationImage(
-                                image: AssetImage(thumbnailPath),
+                                image: AssetImage(
+                                  'assets/images/video_placeholder.png',
+                                ),
                                 fit: BoxFit.cover,
                                 onError: (exception, stackTrace) {
                                   print(
@@ -359,9 +322,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
                           Center(
                             child: Icon(
                               Icons.play_circle_outline,
-                              size: isWeb
-                                  ? 60
-                                  : 48, // Kích thước icon lớn hơn trên web
+                              size: 48,
                               color: Colors.white.withOpacity(0.8),
                             ),
                           ),
@@ -375,7 +336,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: ScreenUtil().setSp(isWeb ? 14 : 12),
+                                fontSize: ScreenUtil().setSp(12),
                                 fontWeight: FontWeight.bold,
                                 shadows: [
                                   Shadow(
@@ -397,7 +358,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
           )
         else
           SizedBox(
-            height: ScreenUtil().screenHeight * (isWeb ? 0.4 : 0.3),
+            height: ScreenUtil().screenHeight * 0.3,
             child: const Center(
               child: Text('Không có video'),
             ),
@@ -533,7 +494,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
                     ),
                   ),
                   Text(
-                    'Có ${state.categories.length} Cuộc Đàm Thoại',
+                    'Có 1 Cuộc Đàm Thoại',
                     style: TextStyle(
                       fontSize: ScreenUtil().setSp(16),
                       color: Colors.orange,
@@ -542,94 +503,38 @@ class _HomeViewState extends ConsumerState<HomeView> {
                   ),
                 ],
               ),
-              if (!kIsWeb) // Chỉ hiển thị nếu không phải là web
-                TextButton(
-                  onPressed: () {
-                    ref.read(appNavigatorProvider).navigateTo(
-                        AppRoutes.categories,
-                        arguments: state.categories);
-                  },
-                  child: Text(
-                    AppLocalizations.of(context)!.viewAll,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontSize: ScreenUtil().setSp(14),
-                    ),
+              TextButton(
+                onPressed: () {
+                  ref.read(appNavigatorProvider).navigateTo(
+                      AppRoutes.categories,
+                      arguments: state.categories);
+                },
+                child: Text(
+                  AppLocalizations.of(context)!.viewAll,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontSize: ScreenUtil().setSp(14),
                   ),
                 ),
+              ),
             ],
           ),
         ),
         state.categoriesLoadingStatus == LoadingStatus.success
             ? SizedBox(
-                height: ScreenUtil().screenHeight * 0.4,
+                height: ScreenUtil().screenHeight *
+                    0.4, // Điều chỉnh chiều cao tương đối
                 child: ListView.builder(
                   padding: EdgeInsets.symmetric(horizontal: 16),
                   scrollDirection: Axis.horizontal,
-                  // itemCount: state.categories.length,
-                  itemCount: categories.length,
-
+                  itemCount: state.categories.length,
                   itemBuilder: (context, index) {
-                    final category = categories[index];
-                    return buildConversationItem(category, index);
-
-                    // return buildConversationItem(
-                    //     state.categories[index], index);
+                    return buildConversationItem(
+                        state.categories[index], index);
                   },
                 ),
               )
-            : state.categoriesLoadingStatus == LoadingStatus.error
-                ? SizedBox(
-                    height: ScreenUtil().screenHeight * 0.4,
-                    child: GridView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: EdgeInsets.symmetric(horizontal: 16),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 1,
-                        mainAxisSpacing: 16,
-                        crossAxisSpacing: 16,
-                        childAspectRatio: 1,
-                      ),
-                      itemCount: categories.length,
-                      itemBuilder: (context, index) {
-                        final category = categories[index];
-                        return buildConversationItem(category, index);
-                      },
-                    ),
-
-                    // return Container(
-                    //   decoration: BoxDecoration(
-                    //     color: Colors.grey[300],
-                    //     borderRadius: BorderRadius.circular(10),
-                    //   ),
-                    //   child: Column(
-                    //     mainAxisAlignment: MainAxisAlignment.center,
-                    //     children: [
-                    //       // Hiển thị hình ảnh từ imageURL
-                    //       Image.asset(
-                    //         'assets/images/temp_topic.png',
-                    //         // Đảm bảo rằng category.imageURL có giá trị hợp lệ
-                    //         fit: BoxFit.cover,
-                    //       ),
-                    //       SizedBox(
-                    //           height:
-                    //               8), // Khoảng cách giữa hình ảnh và text
-                    //       // Hiển thị tên category
-                    //       Text(
-                    //         category
-                    //             .translation, // Hiển thị translation của category
-                    //         style: TextStyle(
-                    //           fontSize: ScreenUtil().setSp(18),
-                    //           fontWeight: FontWeight.w600,
-                    //         ),
-                    //         textAlign: TextAlign.center,
-                    //       ),
-                    //     ],
-                    //   ),
-                    // );
-                  )
-                : Container(),
+            : Center(child: CircularProgressIndicator()),
       ],
     );
   }
@@ -638,258 +543,292 @@ class _HomeViewState extends ConsumerState<HomeView> {
     final isDarkTheme = ref.watch(themeProvider);
     final language = ref.watch(appLanguageProvider);
 
-    return kIsWeb
-        ? Container(
-            width: ScreenUtil().screenWidth * 0.7,
-            margin: EdgeInsets.only(right: 16),
-            decoration: BoxDecoration(
-              color: isDarkTheme ? Colors.grey[800] : Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 4,
-                  offset: Offset(0, 2),
-                ),
-              ],
+    return GestureDetector(
+      onTap: () {
+        ref
+            .read(appNavigatorProvider)
+            .navigateTo(AppRoutes.category, arguments: category);
+      },
+      child: Container(
+        width:
+            ScreenUtil().screenWidth * 0.7, // Điều chỉnh chiều rộng tương đối
+        margin: EdgeInsets.only(right: 16),
+        decoration: BoxDecoration(
+          color: isDarkTheme ? Colors.grey[800] : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 4,
+              offset: Offset(0, 2),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
               children: [
-                Stack(
-                  children: [
-                    ClipRRect(
-                      borderRadius:
-                          BorderRadius.vertical(top: Radius.circular(12)),
-                      child: AspectRatio(
-                        aspectRatio: 16 / 9,
-                        child: Image.asset(
-                          conversationImages[index % conversationImages.length],
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              color: Colors.grey[200],
-                              child: Image.asset(
-                                conversationImages[
-                                    index % conversationImages.length],
-                                fit: BoxFit.cover,
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 12,
-                      left: 12,
-                      child: Container(
-                        padding:
-                            EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Color(0xFF2E7D32),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          'EASY',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: ScreenUtil().setSp(12),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        language == Language.english
-                            ? category.name
-                            : category.translation,
-                        style: TextStyle(
-                          color: isDarkTheme ? Colors.white : Colors.black87,
-                          fontSize: ScreenUtil().setSp(20),
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        '3-5 Minutes',
-                        style: TextStyle(
-                          color:
-                              isDarkTheme ? Colors.grey[400] : Colors.grey[600],
-                          fontSize: ScreenUtil().setSp(14),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          )
-        : GestureDetector(
-            onTap: () {
-              ref
-                  .read(appNavigatorProvider)
-                  .navigateTo(AppRoutes.category, arguments: category);
-            },
-            child: Container(
-              width: ScreenUtil().screenWidth * 0.7,
-              margin: EdgeInsets.only(right: 16),
-              decoration: BoxDecoration(
-                color: isDarkTheme ? Colors.grey[800] : Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 4,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Stack(
-                    children: [
-                      ClipRRect(
-                        borderRadius:
-                            BorderRadius.vertical(top: Radius.circular(12)),
-                        child: AspectRatio(
-                          aspectRatio: 16 / 9,
+                ClipRRect(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+                  child: AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: Image.network(
+                      category.imageUrl ?? '',
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: Colors.grey[200],
                           child: Image.asset(
                             conversationImages[
                                 index % conversationImages.length],
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                color: Colors.grey[200],
-                                child: Image.asset(
-                                  conversationImages[
-                                      index % conversationImages.length],
-                                  fit: BoxFit.cover,
-                                ),
-                              );
-                            },
                           ),
-                        ),
-                      ),
-                      Positioned(
-                        top: 12,
-                        left: 12,
-                        child: Container(
-                          padding:
-                              EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Color(0xFF2E7D32),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            'EASY',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: ScreenUtil().setSp(12),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                        );
+                      },
+                    ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          language == Language.english
-                              ? category.name
-                              : category.translation,
-                          style: TextStyle(
-                            color: isDarkTheme ? Colors.white : Colors.black87,
-                            fontSize: ScreenUtil().setSp(20),
-                            fontWeight: FontWeight.bold,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          '3-5 Minutes',
-                          style: TextStyle(
-                            color: isDarkTheme
-                                ? Colors.grey[400]
-                                : Colors.grey[600],
-                            fontSize: ScreenUtil().setSp(14),
-                          ),
-                        ),
-                      ],
+                ),
+                Positioned(
+                  top: 12,
+                  left: 12,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Color(0xFF2E7D32),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      'EASY',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: ScreenUtil().setSp(12),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    language == Language.english
+                        ? category.name
+                        : category.translation,
+                    style: TextStyle(
+                      color: isDarkTheme ? Colors.white : Colors.black87,
+                      fontSize: ScreenUtil().setSp(20),
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    '3-5 Minutes',
+                    style: TextStyle(
+                      color: isDarkTheme ? Colors.grey[400] : Colors.grey[600],
+                      fontSize: ScreenUtil().setSp(14),
                     ),
                   ),
                 ],
               ),
             ),
-          );
+          ],
+        ),
+      ),
+    );
+  }
+
+// You might need to define these somewhere in your code
+  final List<String> conversationImages = [
+    'assets/images/fitness.jpg',
+    'assets/images/cooking.jpg',
+    'assets/images/account.jpg',
+    // Add more image paths as needed
+  ];
+
+  Widget buildExplore(HomeState state) {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+              child: Text(
+                "ELSA AI Conversations",
+                style: TextStyle(
+                  fontSize: ScreenUtil().setSp(22),
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                ref
+                    .read(appNavigatorProvider)
+                    .navigateTo(AppRoutes.lessons, arguments: state.lessons);
+              },
+              child: Text(
+                AppLocalizations.of(context)!.viewAll,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.secondary,
+                  fontSize: ScreenUtil().setSp(14),
+                ),
+              ),
+            ),
+          ],
+        ),
+        SizedBox(
+          height: ScreenUtil().setHeight(8),
+        ),
+        ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: ScreenUtil().screenHeight * 0.4,
+          ),
+          child: state.lessonsLoadingStatus == LoadingStatus.success
+              ? PageView.builder(
+                  itemCount: state.lessons.length,
+                  controller: PageController(
+                      viewportFraction: 0.9), // Điều chỉnh viewportFraction
+                  itemBuilder: (context, index) =>
+                      buildExploreItem(state.lessons[index]),
+                )
+              : Center(child: CircularProgressIndicator()),
+        ),
+      ],
+    );
+  }
+
+  Widget buildExploreItem(Lesson lesson) {
+    final isDarkTheme = ref.watch(themeProvider);
+    final language = ref.watch(appLanguageProvider);
+
+    return GestureDetector(
+      onTap: () {
+        ref
+            .read(appNavigatorProvider)
+            .navigateTo(AppRoutes.lesson, arguments: lesson);
+      },
+      child: Container(
+        margin: EdgeInsets.symmetric(horizontal: 8), // Khoảng cách
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            colors: isDarkTheme
+                ? [Colors.grey[850]!, Colors.black]
+                : [Colors.white, Colors.blueAccent.withOpacity(0.2)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 10,
+              offset: Offset(0, 5),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(
+            children: [
+              AspectRatio(
+                aspectRatio: 1.2,
+                child: Image.asset(
+                  lesson.imageURL,
+                  fit: BoxFit.cover,
+                  color: Colors.black.withOpacity(0.3),
+                  colorBlendMode: BlendMode.darken,
+                ),
+              ),
+              Positioned(
+                bottom: 10,
+                left: 10,
+                right: 10,
+                child: Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    color: isDarkTheme ? Colors.black54 : Colors.white54,
+                  ),
+                  child: Text(
+                    language == Language.english
+                        ? lesson.name
+                        : lesson.translation,
+                    style: TextStyle(
+                      color: isDarkTheme ? Colors.white : Colors.black,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget buildAppBar() {
     final user = FirebaseAuth.instance.currentUser!;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Kiểm tra nếu là màn hình lớn (web)
-        bool isWeb = constraints.maxWidth > 800;
-
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            children: [
-              if (!isWeb)
-                InkWell(
-                  onTap: () {
-                    ref
-                        .read(appNavigatorProvider)
-                        .navigateTo(AppRoutes.editProfile);
-                  },
-                  child: CircleAvatar(
-                    radius: ScreenUtil().setHeight(20),
-                    child: ClipOval(
-                      child: user.photoURL != null
-                          ? Image.network(user.photoURL!)
-                          : AppImages.avatar(),
-                    ),
-                  ),
-                ),
-              const Spacer(),
-              if (!isWeb)
-                IconButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => WordSearchPage()),
-                    );
-                  },
-                  icon: Icon(
-                    Icons.search,
-                    color: Theme.of(context).iconTheme.color,
-                    size: ScreenUtil().setHeight(24),
-                  ),
-                ),
-            ],
+    return Padding(
+      padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 8),
+      child: Row(
+        children: [
+          InkWell(
+            onTap: () {
+              ref.read(appNavigatorProvider).navigateTo(
+                    AppRoutes.editProfile,
+                  );
+            },
+            child: CircleAvatar(
+              radius: ScreenUtil().setHeight(20),
+              child: ClipOval(
+                child: user.photoURL != null
+                    ? Image.network(user.photoURL!)
+                    : AppImages.avatar(),
+              ),
+            ),
           ),
-        );
-      },
+          const SizedBox(
+            width: 16,
+          ),
+          Text(
+            '${AppLocalizations.of(context)!.hi} ${user.displayName}',
+            style: TextStyle(
+              fontSize: ScreenUtil().setSp(20),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const Spacer(),
+          IconButton(
+            onPressed: () {
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (context) => WordSearchPage()));
+            },
+            icon: Icon(Icons.search,
+                color: Theme.of(context).iconTheme.color,
+                size: ScreenUtil().setHeight(24)),
+          )
+        ],
+      ),
     );
   }
 
   Widget buildCategories(HomeState state) {
     final categories = state.categories;
-    final maxVisibleCategories = 10;
+    final maxVisibleCategories = 10; // Số lượng phần tử hiển thị tối đa
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -962,7 +901,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
                             ),
                             child: Center(
                               child: Text(
-                                "More",
+                                "More", // Dấu "..." để mở rộng
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -1028,64 +967,49 @@ class _HomeViewState extends ConsumerState<HomeView> {
   }
 
   Widget buildBanner() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        double bannerHeight =
-            kIsWeb ? 500 : MediaQuery.of(context).size.height / 4;
-        double bannerWidth =
-            kIsWeb && constraints.maxWidth > 800 ? 800 : constraints.maxWidth;
+    const String _imagesPath = 'assets/images';
 
-        return Center(
-          child: SizedBox(
-            width: bannerWidth,
-            height: bannerHeight,
-            child: GestureDetector(
-              onHorizontalDragUpdate: (details) {
-                if (details.delta.dx > 0) {
-                  _bannerController.previousPage(
-                      duration: Duration(milliseconds: 300),
-                      curve: Curves.easeIn);
-                } else if (details.delta.dx < 0) {
-                  _bannerController.nextPage(
-                      duration: Duration(milliseconds: 300),
-                      curve: Curves.easeIn);
-                }
-              },
-              child: PageView.builder(
-                controller: _bannerController,
-                itemCount: imagePaths.length,
-                physics: BouncingScrollPhysics(),
-                itemBuilder: (context, index) {
-                  return Padding(
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(25),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(25),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black26,
-                              blurRadius: 8,
-                              spreadRadius: 1,
-                              offset: Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Image.asset(
-                          imagePaths[index],
-                          fit: BoxFit.cover,
-                        ),
-                      ),
+    final List<String> imagePaths = [
+      '$_imagesPath/banner.png',
+      '$_imagesPath/banner1.png',
+      '$_imagesPath/banner2.png',
+      '$_imagesPath/banner3.png',
+      '$_imagesPath/banner4.png',
+    ];
+
+    return SizedBox(
+      height: MediaQuery.of(context).size.height / 4, // Full screen height
+      child: PageView.builder(
+        controller: _bannerController,
+        itemCount: imagePaths.length,
+        itemBuilder: (context, index) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(25), // Đã bo đều các góc
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius:
+                      BorderRadius.circular(25), // Bo đều góc bên trong
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 8,
+                      spreadRadius: 1,
+                      offset: Offset(0, 4), // Tạo hiệu ứng đổ bóng
                     ),
-                  );
-                },
+                  ],
+                ),
+                child: Image.asset(
+                  imagePaths[index],
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }
