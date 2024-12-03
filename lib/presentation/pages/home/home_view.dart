@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -12,7 +13,6 @@ import 'package:speak_up/data/providers/app_language_provider.dart';
 import 'package:speak_up/data/providers/app_navigator_provider.dart';
 import 'package:speak_up/data/providers/app_theme_provider.dart';
 import 'package:speak_up/domain/entities/category/category.dart';
-import 'package:speak_up/domain/entities/lesson/lesson.dart';
 import 'package:speak_up/domain/entities/youtube_video/youtube_video.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
@@ -123,16 +123,9 @@ class _HomeViewState extends ConsumerState<HomeView> {
 
   Future<void> _loadScore() async {
     double scoreListening = await getLatestScore("listening");
-    print('Loaded   score: $scoreListening%');
-
     double scoreReading = await getLatestScore("reading");
-    print('Loaded   score: $scoreReading%');
-
     double scoreWriting = await getLatestScore("writing");
-    print('Loaded   score: $scoreWriting%');
-
     double scoreSpeaking = await getLatestScore("speaking");
-    print('Loaded   score: $scoreWriting%');
 
     setState(() {
       _listeningScore = scoreListening;
@@ -140,6 +133,47 @@ class _HomeViewState extends ConsumerState<HomeView> {
       _writingScore = scoreWriting;
       _speakingScore = scoreSpeaking;
     });
+
+    await updateUserScore(
+      listeningScore: _listeningScore,
+      readingScore: _readingScore,
+      writingScore: _writingScore,
+      speakingScore: _speakingScore,
+    );
+  }
+
+  Future<void> updateUserScore({
+    double listeningScore = 0.0,
+    double readingScore = 0.0,
+    double writingScore = 0.0,
+    double speakingScore = 0.0,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final userId = user.uid;
+      final today = DateTime.now().toIso8601String().split('T')[0];
+      DocumentReference userActivityRef =
+          FirebaseFirestore.instance.collection('users').doc(userId);
+
+      print('Updating user score for user: $userId');
+      print('Listening score: $listeningScore');
+      print('Reading score: $readingScore');
+      print('Writing score: $writingScore');
+      print('Speaking score: $speakingScore');
+
+      // Update the user's score information
+      await userActivityRef.set({
+        'userId': userId,
+        'scores': {
+          'listening': listeningScore,
+          'reading': readingScore,
+          'writing': writingScore,
+          'speaking': speakingScore,
+        },
+      }, SetOptions(merge: true));
+
+      print('User score updated successfully');
+    }
   }
 
   double _listeningScore = 0.0;
@@ -150,7 +184,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
 
   Future<double> getLatestScore(String skill) async {
     final prefs = await SharedPreferences.getInstance();
-    final key = '${skill}_scores'; // Định danh cho mỗi kỹ năng
+    final key = '${skill}_scores';  
     final List<String> savedScores = prefs.getStringList(key) ?? [];
 
     if (savedScores.isEmpty) {
@@ -295,7 +329,8 @@ class _HomeViewState extends ConsumerState<HomeView> {
                 final thumbnailPath = reelsState.videoThumbnails.isNotEmpty &&
                         index < reelsState.videoThumbnails.length
                     ? reelsState.videoThumbnails[index]
-                    : 'assets/images/video_placeholder.png';
+                     : 'assets/images/video_placeholder.png';
+ 
                 return Padding(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
@@ -361,7 +396,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
                               Icons.play_circle_outline,
                               size: isWeb
                                   ? 60
-                                  : 48, // Kích thước icon lớn hơn trên web
+                                  : 48,  
                               color: Colors.white.withOpacity(0.8),
                             ),
                           ),
@@ -375,7 +410,8 @@ class _HomeViewState extends ConsumerState<HomeView> {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: ScreenUtil().setSp(isWeb ? 14 : 12),
+                                 fontSize: ScreenUtil().setSp(isWeb ? 14 : 12),
+ 
                                 fontWeight: FontWeight.bold,
                                 shadows: [
                                   Shadow(
@@ -397,7 +433,8 @@ class _HomeViewState extends ConsumerState<HomeView> {
           )
         else
           SizedBox(
-            height: ScreenUtil().screenHeight * (isWeb ? 0.4 : 0.3),
+             height: ScreenUtil().screenHeight * (isWeb ? 0.4 : 0.3),
+ 
             child: const Center(
               child: Text('Không có video'),
             ),
@@ -597,37 +634,6 @@ class _HomeViewState extends ConsumerState<HomeView> {
                         return buildConversationItem(category, index);
                       },
                     ),
-
-                    // return Container(
-                    //   decoration: BoxDecoration(
-                    //     color: Colors.grey[300],
-                    //     borderRadius: BorderRadius.circular(10),
-                    //   ),
-                    //   child: Column(
-                    //     mainAxisAlignment: MainAxisAlignment.center,
-                    //     children: [
-                    //       // Hiển thị hình ảnh từ imageURL
-                    //       Image.asset(
-                    //         'assets/images/temp_topic.png',
-                    //         // Đảm bảo rằng category.imageURL có giá trị hợp lệ
-                    //         fit: BoxFit.cover,
-                    //       ),
-                    //       SizedBox(
-                    //           height:
-                    //               8), // Khoảng cách giữa hình ảnh và text
-                    //       // Hiển thị tên category
-                    //       Text(
-                    //         category
-                    //             .translation, // Hiển thị translation của category
-                    //         style: TextStyle(
-                    //           fontSize: ScreenUtil().setSp(18),
-                    //           fontWeight: FontWeight.w600,
-                    //         ),
-                    //         textAlign: TextAlign.center,
-                    //       ),
-                    //     ],
-                    //   ),
-                    // );
                   )
                 : Container(),
       ],
@@ -842,8 +848,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
     final user = FirebaseAuth.instance.currentUser!;
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Kiểm tra nếu là màn hình lớn (web)
-        bool isWeb = constraints.maxWidth > 800;
+         bool isWeb = constraints.maxWidth > 800;
 
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -1089,3 +1094,4 @@ class _HomeViewState extends ConsumerState<HomeView> {
     );
   }
 }
+  
