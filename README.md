@@ -1,4 +1,4 @@
-# 💫About Me :
+# 💫APP ENGLISH :
 📚 English Learning App
 Ứng dụng học tiếng Anh hỗ trợ người dùng rèn luyện từ vựng, ngữ pháp, và phát âm thông qua các bài học tương tác. Ứng dụng được phát triển bằng Flutter, sử dụng Riverpod để quản lý trạng thái, Firebase CLI để kết nối các dịch vụ đám mây, và SQLite để lưu trữ dữ liệu cục bộ.
 
@@ -22,22 +22,7 @@ Riverpod	Quản lý trạng thái ứng dụng
 Firebase CLI	Triển khai và quản lý backend với Firebase Authentication, Firestore
 SQLite	Lưu trữ dữ liệu ngoại tuyến (offline)
 Dart	Ngôn ngữ lập trình chính của Flutter
-🏗 Cấu trúc dự án
-css
-Sao chép
-Chỉnh sửa
-lib/
-├── main.dart
-├── features/
-│   ├── auth/        # Xử lý đăng nhập, đăng ký
-│   ├── home/        # Màn hình chính
-│   ├── vocab/       # Quản lý từ vựng
-│   └── grammar/     # Bài học ngữ pháp
-├── models/          # Định nghĩa dữ liệu
-├── services/
-│   ├── firebase_service.dart
-│   └── local_db.dart
-└── providers/       # Riverpod providers
+
 ⚙️ Cài đặt & chạy dự án
 1. Cài đặt Flutter
    bash
@@ -107,8 +92,15 @@ AI TIẾNG ANH
 ### ✍️Random Dev Quote
 ![](https://quotes-github-readme.vercel.app/api?type=horizontal&theme=radical)
 
-### 😂Random Dev Meme
-<img src="https://random-memer.herokuapp.com/" width="512px"/>
+### 😂UI DEV
+![img.png](img.png)
+![img_2.png](img_2.png)
+![img_1.png](img_1.png)
+![img_3.png](img_3.png)
+![img_4.png](img_4.png)
+
+
+
 
 ---
 [![](https://visitcount.itsvg.in/api?id=ENGLISH&icon=0&color=0)](https://visitcount.itsvg.in)
